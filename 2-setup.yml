@@ -1,0 +1,47 @@
+---
+- hosts: network
+  tasks:
+  - name: Check VirtualBox hostonly interface presence
+    shell: "ip link | grep -oEi vboxnet."
+    register: interfacePresence
+    ignore_errors: true
+  - name: Create VirtualBox hostonly interface if absent
+    shell: "vboxmanage hostonlyif create"
+    when: interfacePresence['failed']
+  - name: Get VirtualBox hostonly interface name
+    shell: "ip link | grep -oEi vboxnet."
+    register: interfaceName
+  - name: Change NIC 1
+    shell: "vboxmanage modifyvm {{ item.name }} --nic1 hostonly --hostonlyadapter1 {{ interfaceName.stdout_lines[0] }}"
+    loop: "{{ hostvars[inventory_hostname]['vms'] }}"
+  - name: OVS Configuration  
+    block:
+    - name: Create OVS bridge
+      shell: "ovs-vsctl --may-exist add-br {{ item.name }}"
+      loop: "{{ hostvars[inventory_hostname].ovs }}"
+    - name: Set OVS controller
+      shell: "ovs-vsctl set-controller {{ item['name'] }} tcp:{{ item.controller }}"
+      loop: "{{ hostvars[inventory_hostname].ovs }}"
+    - name: Add access ports
+      shell: "ovs-vsctl --may-exist add-port {{ item.0.name }} {{ item.1 }} -- set interface {{ item.1 }} type=internal"
+      loop: "{{ hostvars[inventory_hostname].ovs|subelements('access', skip_missing=True) }}"
+      when: item.0.access is defined
+    - name: Add VXLAN ports
+      shell: "ovs-vsctl --may-exist add-port {{ item.0.name }} {{ item.1.name }} -- set interface {{ item.1.name }} type=vxlan options:remote_ip={{ item.1.ip }}"
+      loop: "{{ hostvars[inventory_hostname].ovs|subelements('vxlan', skip_missing=True) }}"
+      when: item.0.vxlan is defined
+    - name: Add patch ports
+      shell: "ovs-vsctl --may-exist add-port {{ item.0.name }} {{ item.1.name }} -- set interface {{ item.1.name }} type=patch options:peer={{ item.1.peer }}"
+      loop: "{{ hostvars[inventory_hostname].ovs|subelements('patch', skip_missing=True) }}"
+      when: item.0.patch is defined
+    - name: Turn on bridges
+      shell: "ip link set {{ item.name }} up"
+      loop: "{{ hostvars[inventory_hostname].ovs }}"
+    - name: Turn on bridge access ports
+      shell: "ip link set {{ item.1 }} up"
+      loop: "{{ hostvars[inventory_hostname].ovs|subelements('access', skip_missing=True) }}"
+    become: yes
+  - name: Change NIC 2
+    shell: "vboxmanage modifyvm {{ item.name }} --nic2 bridged --bridgeadapter2 {{ item.port }}"
+    loop: "{{ hostvars[inventory_hostname].vms }}"
+...

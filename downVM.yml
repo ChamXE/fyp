@@ -1,0 +1,7 @@
+---
+- hosts: network
+  tasks:
+  - name: Turn off VM
+    shell: "vboxmanage controlvm {{ item.name }} poweroff"
+    loop: "{{ hostvars[inventory_hostname]['vms'] }}"
+...

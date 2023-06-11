@@ -1,0 +1,7 @@
+---
+- hosts: network
+  tasks:
+  - name: Turn on VM
+    shell: "vboxmanage startvm {{ item.name }} --type headless"
+    loop: "{{ hostvars[inventory_hostname]['vms'] }}"
+...

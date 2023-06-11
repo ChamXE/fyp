@@ -1,0 +1,145 @@
+---
+- hosts: network
+  vars:
+    username: cisco
+    password: cisco123!
+    createUser: rennaux
+    createPassword: 20343132
+    def_gw: GigabitEthernet2
+  tasks:
+    - name: Configure hostname
+      ansible.builtin.uri:
+        url: "https://{{ item.vbox_ip }}/restconf/data/Cisco-IOS-XE-native:native/hostname"
+        method: PATCH
+        body_format: json
+        user: "{{ username }}"
+        password: "{{ password }}"
+        force_basic_auth: true
+        validate_certs: no
+        headers: 
+          Content-Type: application/yang-data+json
+        body: 
+          hostname: "{{ item.name }}"
+      register: hostname_response
+      failed_when: hostname_response.status not in [200,201,204]
+      loop: "{{ hostvars[inventory_hostname]['vms'] }}"
+
+    - name: Check user presence
+      ansible.builtin.uri:
+        url: "https://{{ item.vbox_ip }}/restconf/data/Cisco-IOS-XE-native:native/username={{ createUser }}"
+        method: GET
+        user: "{{ username }}"
+        password: "{{ password }}"
+        force_basic_auth: true
+        validate_certs: no
+        headers:
+          Accept: application/yang-data+json
+      register: user_presence_response
+      failed_when: user_presence_response.status not in [200,404]
+      loop: "{{ hostvars[inventory_hostname]['vms'] }}"
+
+#    - debug:
+#        var: user_presence_response
+
+    - name: Create user
+      ansible.builtin.uri:
+        url: "https://{{ item.vbox_ip }}/restconf/data/Cisco-IOS-XE-native:native"
+        method: POST
+        body_format: json
+        user: "{{ username }}"
+        password: "{{ password }}"
+        force_basic_auth: true
+        validate_certs: no
+        headers:
+          Content-Type: application/yang-data+json
+        body:
+          username:
+            - name: "{{ createUser }}"
+              privilege: 15
+              secret:
+                encryption: "0"
+                secret: "{{ createPassword }}"
+      register: user_response
+      when: user_presence_response.results[0].status == 404
+      failed_when: user_response.status not in [200,201,204]
+      loop: "{{ hostvars[inventory_hostname]['vms'] }}"
+
+    - name: Configure management interface
+      ansible.builtin.uri:
+        url: "https://{{ item.vbox_ip }}/restconf/data/ietf-interfaces:interfaces"
+        method: PATCH
+        body_format: json
+        user: "{{ createUser }}"
+        password: "{{ createPassword }}"
+        force_basic_auth: true
+        validate_certs: no
+        headers:
+          Content-Type: application/yang-data+json
+        body:
+          ietf-interfaces:interfaces:
+            interface:
+              name: GigabitEthernet1
+              enabled: true
+              ietf-ip:ipv4:
+                address:
+                  - ip: "{{ item.vbox_ip }}"
+                    netmask: 255.255.255.0
+      register: management_interface_response
+      failed_when: management_interface_response.status not in [200,201,204]
+      loop: "{{ hostvars[inventory_hostname]['vms'] }}"
+
+    - name: Configure SDN interface
+      ansible.builtin.uri:
+        url: "https://{{ item.vbox_ip }}/restconf/data/ietf-interfaces:interfaces"
+        method: PATCH
+        body_format: json
+        user: "{{ createUser }}"
+        password: "{{ createPassword }}"
+        force_basic_auth: true
+        validate_certs: no
+        headers:
+          Content-Type: application/yang-data+json
+        body:
+          ietf-interfaces:interfaces:
+            interface:
+              name: "{{ def_gw }}"
+              enabled: true
+              ietf-ip:ipv4:
+                address:
+                  - ip: "{{ item.sdn_ip }}"
+                    netmask: "{{ item.mask }}"
+      register: sdn_interface_response
+      failed_when: sdn_interface_response.status not in [200,201,204]
+      loop: "{{ hostvars[inventory_hostname]['vms'] }}"
+
+    - name: Configure default route
+      ansible.builtin.uri:
+        url: "https://{{ item.vbox_ip }}/restconf/data/Cisco-IOS-XE-native:native/ip/route"
+        method: POST
+        body_format: json
+        user: "{{ createUser }}"
+        password: "{{ createPassword }}"
+        force_basic_auth: true
+        validate_certs: no
+        headers:
+          Content-Type: application/yang-data+json
+        body:
+          ip-route-interface-forwarding-list:
+            - prefix: 0.0.0.0
+              mask: 0.0.0.0
+              fwd-list:
+                - fwd: "{{ def_gw }}"
+      register: default_route_response
+      failed_when: default_route_response.status not in [200,201,204]
+      loop: "{{ hostvars[inventory_hostname]['vms'] }}"
+
+    - name: Save config
+      ansible.builtin.uri:
+        url: "https://{{ item.vbox_ip }}/restconf/operations/cisco-ia:save-config"
+        method: POST
+        user: "{{ createUser }}"
+        password: "{{ createPassword }}"
+        force_basic_auth: true
+        validate_certs: no
+      loop: "{{ hostvars[inventory_hostname]['vms'] }}"
+...

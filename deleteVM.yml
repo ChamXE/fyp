@@ -1,0 +1,14 @@
+---
+- hosts: network
+  tasks:
+  - name: Check if VM is on
+    shell: "vboxmanage list runningvms | grep -oEi '\".*\"' | sed 's/\"//g'"
+    register: runningvms
+  - name: Turn off VM
+    shell: "vboxmanage controlvm {{ item }} poweroff"
+    loop: "{{ runningvms | community.general.json_query('stdout_lines[*]') }}"
+    when: item in hostvars[inventory_hostname] | community.general.json_query('vms[*].name') 
+  - name: Delete VM
+    shell: "vboxmanage unregistervm --delete {{ item.name }}"
+    loop: "{{ hostvars[inventory_hostname]['vms'] }}"
+...

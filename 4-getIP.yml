@@ -1,0 +1,24 @@
+---
+- hosts: network
+  serial: 1
+  tasks:
+  - name: Get VM MAC address
+    shell: "vboxmanage showvminfo {{ item.name }} | grep 'NIC [0-9]:.*MAC:.*vboxnet0' | grep -oEi '[0-9A-Z]{12}'"
+    register: vm_info
+    loop: "{{ hostvars[inventory_hostname]['vms'] }}"
+
+  - name: Discover IP address
+    shell: "vboxmanage dhcpserver findlease --interface vboxnet0 --mac-address {{ item.stdout_lines[0] }} | grep -oEi '[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}'"
+    register: addresses
+    loop: "{{ vm_info | community.general.json_query('results[*]') }}"
+
+  - name: Write IP address
+    local_action:
+      module: lineinfile
+      backrefs: yes
+      dest: "{{ inventory_file }}"
+      regexp: "^(.*{{ item.item.item.name }}.*)$"
+      line: '\1\n              vbox_ip: {{ item.stdout_lines[0] }}'
+      state: present
+    loop: "{{ addresses | community.general.json_query('results[*]') }}"
+...

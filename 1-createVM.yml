@@ -1,0 +1,9 @@
+---
+- hosts: network
+  vars:
+    ovaPath: "'/home/rennaux/VirtualBox VMs/CSR1000v-17.03.04-Clean.ova'"
+  tasks:
+  - name: Install VM
+    shell: "vboxmanage import {{ ovaPath }} --vsys 0 --vmname {{ item['name'] }}"
+    loop: "{{ hostvars[inventory_hostname]['vms'] }}"
+...
