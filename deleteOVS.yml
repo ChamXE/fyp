@@ -1,0 +1,8 @@
+---
+- hosts: network
+  become: yes
+  tasks:
+  - name: Delete OVS 
+    shell: "sudo ovs-vsctl --if-exists del-br {{ item.name }}"
+    loop: "{{ hostvars[inventory_hostname]['ovs'] }}"
+...

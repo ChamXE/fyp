@@ -1,0 +1,11 @@
+---
+- hosts: network
+  become: yes
+  tasks:
+  - name: Delete network namespace
+    shell: "ip netns delete {{ item.name }}"
+    loop: "{{ hostvars[inventory_hostname]['namespaces'] }}"
+  - name: Delete port from OVS
+    shell: "ovs-vsctl del-port {{ item.ovs }} {{ item.ovsportname }}"
+    loop: "{{ hostvars[inventory_hostname]['namespaces'] }}"
+...

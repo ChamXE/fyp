@@ -20,7 +20,7 @@
       shell: "ovs-vsctl --may-exist add-br {{ item.name }}"
       loop: "{{ hostvars[inventory_hostname].ovs }}"
     - name: Set OVS controller
-      shell: "ovs-vsctl set-controller {{ item['name'] }} tcp:{{ item.controller }}"
+      shell: "ovs-vsctl set-controller {{ item['name'] }} tcp:{{ item.controller }}:6633"
       loop: "{{ hostvars[inventory_hostname].ovs }}"
     - name: Add access ports
       shell: "ovs-vsctl --may-exist add-port {{ item.0.name }} {{ item.1 }} -- set interface {{ item.1 }} type=internal"
@@ -42,6 +42,6 @@
       loop: "{{ hostvars[inventory_hostname].ovs|subelements('access', skip_missing=True) }}"
     become: yes
   - name: Change NIC 2
-    shell: "vboxmanage modifyvm {{ item.name }} --nic2 bridged --bridgeadapter2 {{ item.port }}"
+    shell: "vboxmanage modifyvm {{ item.name }} --nic2 bridged --bridgeadapter2 {{ item.port }} --nictype2 virtio"
     loop: "{{ hostvars[inventory_hostname].vms }}"
 ...
