@@ -1,0 +1,10 @@
+---
+- hosts: network
+  tasks:
+  - name: Display
+    debug:
+      msg: "{{ item.0.name }} {{ item.1.ovsport }} {{ item.0.ports.index(item.1) }}"
+    loop: "{{ hostvars[inventory_hostname]['vms'] | subelements('ports') }}"
+    loop_control:
+      extended: true
+...
