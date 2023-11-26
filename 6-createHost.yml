@@ -5,19 +5,25 @@
   - name: Create network namespace
     shell: "ip netns add {{ item.name }}"
     loop: "{{ hostvars[inventory_hostname]['namespaces'] }}"
+    when: item is defined
   - name: Create veth pair
     shell: "ip link add {{ item.ovsportname }} type veth peer name {{ item.hostportname }} netns {{ item.name }}"
     loop: "{{ hostvars[inventory_hostname]['namespaces'] }}"
+    when: item is defined
   - name: Configure interface 
     shell: "ip netns exec {{ item.name }} ifconfig {{ item.hostportname }} {{ item.ip }} netmask {{ item.mask }}"
     loop: "{{ hostvars[inventory_hostname]['namespaces'] }}"
+    when: item is defined
   - name: Configure default route
     shell: "ip netns exec {{ item.name }} route add default gw {{ item.defaultgateway }} dev {{ item.hostportname }}"
     loop: "{{ hostvars[inventory_hostname]['namespaces'] }}"
+    when: item is defined
   - name: Add port to OVS
     shell: "ovs-vsctl add-port {{ item.ovs }} {{ item.ovsportname }}"
     loop: "{{ hostvars[inventory_hostname]['namespaces'] }}"
+    when: item is defined
   - name: Turn on port
     shell: "ip link set {{ item.ovsportname }} up"
     loop: "{{ hostvars[inventory_hostname]['namespaces'] }}"
+    when: item is defined
 ...

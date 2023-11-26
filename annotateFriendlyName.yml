@@ -1,0 +1,61 @@
+---
+- hosts: network
+  gather_facts: no
+  tasks:
+  - name: Check OVS ID for ONOS
+    become: yes
+    shell: "sudo ovs-ofctl show {{ item.name }} | grep -oEi 'dpid(.*)' | awk '{split($0,array,\":\"); print \"of:\" array[2]}'"
+    loop: "{{ hostvars[inventory_hostname]['ovs'] }}"
+    register: switchid
+  - name: Parse switchid array
+    set_fact:
+      switcharray: "{{ hostvars | community.general.json_query('*.switchid.results[*].stdout') }}"
+  - name: Initiate dictionaries
+    set_fact:
+      switchdict: {}
+      hostdict: {}
+  - name: Add switches into switch dict
+    set_fact:
+      switchdict: "{{ switchdict | ansible.builtin.combine({hostvars[inventory_hostname]['ovs'][index]['name']: item}) }}"
+    loop: "{{ switcharray[0] }}"
+    loop_control:
+      index_var: index
+  - name: Get port number
+    become: yes
+    shell: "sudo ovs-ofctl show {{ item.0.name }} | grep -oEi '(.)\\({{ item.1 }}\\)' | awk '{print substr($0,0,1)}'"
+    loop: "{{ hostvars[inventory_hostname]['ovs']|subelements('access', skip_missing=True) }}"
+    register: hostnumber
+  - name: Parse hostnumber array
+    set_fact:
+      hostarray: "{{ hostvars | community.general.json_query('*.hostnumber.results[*].stdout') }}"
+  - name: Add hosts into host dict
+    set_fact:
+      hostdict: "{{ hostdict | ansible.builtin.combine({switchdict[item.0.name]+'/'+hostarray[0][index]: item.1 | replace(item.0.name,'')}) }}"
+    loop: "{{ hostvars[inventory_hostname]['ovs']|subelements('access', skip_missing=True) }}"
+    loop_control:
+      index_var: index
+  - name: Display host
+    debug:
+      var: hostdict
+  - name: Display switch
+    debug:
+      var: switchdict
+  - name: Add temp host
+    ansible.builtin.add_host:
+      groups: temp
+      name: 10.100.10.30
+
+- hosts: temp
+  gather_facts: no
+  tasks:
+    - name: Annotate device
+      ansible.builtin.shell:
+        chdir: ~/fyp/
+        cmd: "./annotateDevice.exp {{ item.value }} {{ item.key }}"
+      loop: "{{ lookup('ansible.builtin.dict', switchdict) }}"
+    - name: Annotate host
+      ansible.builtin.shell:
+        chdir: ~/fyp/
+        cmd: "./annotateHost.exp {{ item.key }} {{ item.value }}"
+      loop: "{{ lookup('ansible.builtin.dict', hostdict) }}"
+...

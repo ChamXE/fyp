@@ -25,6 +25,6 @@
   - name: Connect to fyp-hp1 to remove ONOS entry
     ansible.builtin.shell:
       chdir: ~/fyp/
-      cmd: "./script.exp {{ item }}"
+      cmd: "./removeOVS.exp {{ item }}"
     loop: "{{ array[0] }}"
 ...
