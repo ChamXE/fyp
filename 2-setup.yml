@@ -22,6 +22,7 @@
     - name: Set OVS controller
       shell: "ovs-vsctl set-controller {{ item['name'] }} tcp:{{ item.controller }}:6633"
       loop: "{{ hostvars[inventory_hostname].ovs }}"
+      when: item.controller is defined
     - name: Add access ports
       shell: "ovs-vsctl --may-exist add-port {{ item.0.name }} {{ item.1 }} -- set interface {{ item.1 }} type=internal"
       loop: "{{ hostvars[inventory_hostname].ovs|subelements('access', skip_missing=True) }}"
