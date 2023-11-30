@@ -107,7 +107,7 @@
                     netmask: "{{ item.1.subnet }}"
       register: sdn_interface_response
       failed_when: sdn_interface_response.status not in [200,201,204]
-      loop: "{{ hostvars[inventory_hostname]['vms'] | subelements('ports') }}"
+      loop: "{{ hostvars[inventory_hostname]['vms'] | subelements('configuration') }}"
 
     - name: Configure routes only interface
       ansible.builtin.uri:

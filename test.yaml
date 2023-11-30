@@ -1,0 +1,148 @@
+all:
+  children:
+    network:
+      hosts:
+        10.100.10.30:
+          ansible_python_interpreter: /usr/bin/python3.6
+          vms:
+            - name: R1
+              vbox_ip: 192.168.56.18
+              ports:
+                - R1S11
+                - R1S12
+                - R1S1
+              configuration:
+                  - ip: 192.168.9.1
+                    subnet: 255.255.255.255
+                    name: GigabitEthernet1
+                  - ip: 192.168.9.2
+                    subnet: 255.255.255.255
+                    name: GigabitEthernet2
+                  - ip: 192.168.9.3
+                    subnet: 255.255.255.255
+                    name: GigabitEthernet3
+                  - ip: 192.168.10.1
+                    subnet: 255.255.255.255
+                    name: GigabitEthernet1
+                  - ip: 192.168.10.2
+                    subnet: 255.255.255.255
+                    name: GigabitEthernet2
+                  - ip: 192.168.10.3
+                    subnet: 255.255.255.255
+                    name: GigabitEthernet3
+              users:
+                - username: rennaux
+                  password: 20343132
+                  privilege: 15
+              routes:
+                - prefix: 0.0.0.0
+                  mask: 0.0.0.0
+                  exitInterface: GigabitEthernet4
+          ovs:
+            - name: S1
+              controller: 10.100.10.30
+              access:
+                - R1S1
+                - R2S1
+              patch:
+                - name: S1S3
+                  peer: S3S1
+            - name: S2
+              controller: 10.100.10.30
+              access:
+                - R3S2
+                - R4S2
+              patch:
+                - name: S2S3
+                  peer: S3S2
+            - name: S3
+              controller: 10.100.10.30
+              access:
+                - R5S3
+              patch:
+                - name: S3S1
+                  peer: S1S3
+                - name: S3S2
+                  peer: S2S3
+            - name: S11
+              access:
+                - R1S11
+            - name: S12
+              access:
+                - R1S12
+            - name: S21
+              access:
+                - R2S21
+            - name: S22
+              access:
+                - R2S22
+            - name: S31
+              access:
+                - R3S31
+            - name: S32
+              access:
+                - R3S32
+            - name: S41
+              access:
+                - R4S41
+            - name: S42
+              access:
+                - R4S42
+          namespaces:
+            - name: H11
+              ip: 192.168.1.11
+              mask: 255.255.255.0
+              ovs: S11
+              ovsportname: S11H11
+              hostportname: H11-eth0
+              defaultgateway: 192.168.1.1
+            - name: H12
+              ip: 192.168.2.11
+              mask: 255.255.255.0
+              ovs: S12
+              ovsportname: S12H12
+              hostportname: H12-eth0
+              defaultgateway: 192.168.2.1
+            - name: H21
+              ip: 192.168.3.11
+              mask: 255.255.255.0
+              ovs: S21
+              ovsportname: S21H21
+              hostportname: H21-eth0
+              defaultgateway: 192.168.3.1
+            - name: H22
+              ip: 192.168.4.11
+              mask: 255.255.255.0
+              ovs: S22
+              ovsportname: S22H22
+              hostportname: H22-eth0
+              defaultgateway: 192.168.4.1
+            - name: H31
+              ip: 192.168.5.11
+              mask: 255.255.255.0
+              ovs: S31
+              ovsportname: S31H31
+              hostportname: H31-eth0
+              defaultgateway: 192.168.5.1
+            - name: H32
+              ip: 192.168.6.11
+              mask: 255.255.255.0
+              ovs: S32
+              ovsportname: S32H32
+              hostportname: H32-eth0
+              defaultgateway: 192.168.6.1
+            - name: H41
+              ip: 192.168.7.11
+              mask: 255.255.255.0
+              ovs: S41
+              ovsportname: S41H41
+              hostportname: H41-eth0
+              defaultgateway: 192.168.7.1
+            - name: H42
+              ip: 192.168.8.11
+              mask: 255.255.255.0
+              ovs: S42
+              ovsportname: S42H42
+              hostportname: H42-eth0
+              defaultgateway: 192.168.8.1
+    ungrouped: {}
