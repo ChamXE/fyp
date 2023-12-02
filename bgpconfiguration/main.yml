@@ -1,0 +1,78 @@
+---
+#- name: Configure neighbour
+#  debug:
+#    msg: "{{ router.name }} {{ item.id }}"
+#  loop: "{{ hostvars[inventory_hostname]['bgp'][router.name]['neighbour'] }}"
+- name: Configure Neighbour
+  ansible.builtin.uri:
+    url: "https://{{ router.vbox_ip }}/restconf/data/Cisco-IOS-XE-native:native/router/bgp={{ hostvars[inventory_hostname]['bgp'][router.name]['asnumber'] }}/neighbor"
+    method: PATCH
+    body_format: json
+    user: "{{ router.users.0.username | default(username) }}"
+    password: "{{ router.users.0.password | default(password) }}"
+    force_basic_auth: true
+    validate_certs: no
+    headers:
+      Content-Type: application/yang-data+json
+    body:
+      Cisco-IOS-XE-bgp:neighbor:
+        - id: "{{ item.id }}"
+          remote-as: "{{ item.remoteas }}"
+  register: neighbour_config
+  when: bgp_router.results[0].status != 404
+  failed_when: neighbour_config.status not in [200,201,204]
+  loop: "{{ hostvars[inventory_hostname]['bgp'][router.name]['neighbour'] }}"
+  retries: 5
+  delay: 5
+  until: neighbour_config.status not in [404, 409]
+- name: Configure eBGP Multihop
+  ansible.builtin.uri:
+    url: "https://{{ router.vbox_ip }}/restconf/data/Cisco-IOS-XE-native:native/router/bgp={{ hostvars[inventory_hostname]['bgp'][router.name]['asnumber'] }}/neighbor={{ item.id }}"
+    method: PATCH
+    body_format: json
+    user: "{{ router.users.0.username | default(username) }}"
+    password: "{{ router.users.0.password | default(password) }}"
+    force_basic_auth: true
+    validate_certs: no
+    headers:
+      Content-Type: application/yang-data+json
+    body:
+      Cisco-IOS-XE-bgp:neighbor:
+        ebgp-multihop:
+          max-hop: "{{ item.ebgpmultihop }}"
+  register: ebgpmultihop_config
+  when: bgp_router.results[0].status != 404 and item.ebgpmultihop is defined
+  failed_when: ebgpmultihop_config.status not in [200,201,204]
+  loop: "{{ hostvars[inventory_hostname]['bgp'][router.name]['neighbour'] }}"
+  retries: 5
+  delay: 5
+  until: ebgpmultihop_config.status not in [404, 409]
+- name: Activate Neighbour
+  ansible.builtin.uri:
+    url: "https://{{ router.vbox_ip }}/restconf/data/Cisco-IOS-XE-native:native/router/bgp={{ hostvars[inventory_hostname]['bgp'][router.name]['asnumber'] }}/address-family/no-vrf/ipv4/unicast/ipv4-unicast/neighbor"
+    method: PATCH
+    body_format: json
+    user: "{{ router.users.0.username | default(username) }}"
+    password: "{{ router.users.0.password | default(password) }}"
+    force_basic_auth: true
+    validate_certs: no
+    headers:
+      Content-Type: application/yang-data+json
+    body:
+      Cisco-IOS-XE-bgp:neighbor:
+        - id: "{{ item.id }}"
+          activate: [null]
+  register: activate_neighbour
+  when: bgp_router.results[0].status != 404
+  failed_when: activate_neighbour.status not in [200,201,204]
+  loop: "{{ hostvars[inventory_hostname]['bgp'][router.name]['neighbour'] }}"
+  retries: 5
+  delay: 5
+  until: activate_neighbour.status not in [404, 409]
+- name: Pass network down to configure network for advertising
+  vars:
+    network: "{{ hostvars[inventory_hostname]['bgp'][router.name]['network'] }}"
+  include_tasks:
+    file: configureNetwork.yml
+  when: hostvars[inventory_hostname]['bgp'][router.name]['network'] is defined
+...

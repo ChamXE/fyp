@@ -6,6 +6,7 @@
     become: yes
     shell: "sudo ovs-ofctl show {{ item.name }} | grep -oEi 'dpid(.*)' | awk '{split($0,array,\":\"); print \"of:\" array[2]}'"
     loop: "{{ hostvars[inventory_hostname]['ovs'] }}"
+    when: item.controller is defined
     register: switchid
   - name: Parse switchid array
     set_fact:
@@ -21,7 +22,7 @@
     loop_control:
       index_var: index
   - name: Get MAC address
-    shell: "vboxmanage showvminfo {{ item.0.name }} | grep -oEi \"MAC: ([[:alnum:]]{12}).*{{ item.1.ovsport }}'\" | grep -oE '[[:alnum:]]{12}' | sed 's/.\\{2\\}/&:/g' | awk '{print substr($0,0,17) \"/None\"}'"
+    shell: "vboxmanage showvminfo {{ item.0.name }} | grep -oEi \"MAC: ([[:alnum:]]{12}).*{{ item.1 }}'\" | grep -oE '[[:alnum:]]{12}' | sed 's/.\\{2\\}/&:/g' | awk '{print substr($0,0,17) \"/None\"}'"
     loop: "{{ hostvars[inventory_hostname]['vms']|subelements('ports', skip_missing=True) }}"
     register: hostmac
   - name: Parse hostmac array

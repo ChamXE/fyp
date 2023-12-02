@@ -1,3 +1,78 @@
 ---
-- host: 10.100.10.30
+- hosts: network
+  vars:
+    username: cisco
+    password: cisco123!
+  tasks:
+    - name: Create BGP Router
+      ansible.builtin.uri:
+        url: "https://{{ item.vbox_ip }}/restconf/data/Cisco-IOS-XE-native:native/router/bgp"
+        method: PATCH
+        body_format: json
+        user: "{{ item.users.0.username | default(username) }}"
+        password: "{{ item.users.0.password | default(password) }}"
+        force_basic_auth: true
+        validate_certs: no
+        headers:
+          Content-Type: application/yang-data+json
+        body:
+          Cisco-IOS-XE-bgp:bgp:
+            - id: "{{ hostvars[inventory_hostname]['bgp'][item.name]['asnumber'] }}"
+      register: bgp_router
+      failed_when: bgp_router.status not in [200,201,204]
+      loop: "{{ hostvars[inventory_hostname]['vms'] }}"
+      retries: 5
+      delay: 5
+      until: bgp_router.status not in [409, 404]
+    - name: Configure Router ID
+      ansible.builtin.uri:
+        url: "https://{{ item.vbox_ip }}/restconf/data/Cisco-IOS-XE-native:native/router/bgp={{ hostvars[inventory_hostname]['bgp'][item.name]['asnumber'] }}"
+        method: PATCH
+        body_format: json
+        user: "{{ item.users.0.username | default(username) }}"
+        password: "{{ item.users.0.password | default(password) }}"
+        force_basic_auth: true
+        validate_certs: no
+        headers:
+          Content-Type: application/yang-data+json
+        body:
+          Cisco-IOS-XE-bgp:bgp:
+            bgp:
+              router-id:
+                ip-id: "{{ hostvars[inventory_hostname]['bgp'][item.name]['bgprouterid'] }}"
+      register: router_id
+      when: hostvars[inventory_hostname]['bgp'][item.name]['bgprouterid'] is defined and bgp_router.results[0].status != 404
+      failed_when: router_id.status not in [200,201,204]
+      loop: "{{ hostvars[inventory_hostname]['vms'] }}"
+      retries: 5
+      delay: 5
+      until: router_id.status not in [409, 404]
+    - name: Add IPv4 Unicast property in address-family
+      ansible.builtin.uri:
+        url: "https://{{ item.vbox_ip }}/restconf/data/Cisco-IOS-XE-native:native/router/bgp={{ hostvars[inventory_hostname]['bgp'][item.name]['asnumber'] }}/address-family/no-vrf/ipv4"
+        method: PATCH
+        body_format: json
+        user: "{{ item.users.0.username | default(username) }}"
+        password: "{{ item.users.0.password | default(password) }}"
+        force_basic_auth: true
+        validate_certs: no
+        headers:
+          Content-Type: application/yang-data+json
+        body:
+          Cisco-IOS-XE-bgp:ipv4:
+            - af-name: "unicast"
+              ipv4-unicast: {}
+      register: add_ipv4unicast
+      when: bgp_router.results[0].status != 404
+      failed_when: add_ipv4unicast.status not in [200,201,204]
+      loop: "{{ hostvars[inventory_hostname]['vms'] }}"
+      retries: 5
+      delay: 5
+      until: add_ipv4unicast.status not in [409, 404]
+    - name: Pass router object down to perform neighbour and network configuration
+      include_tasks:
+        file: bgpconfiguration/main.yml
+      loop: "{{ hostvars[inventory_hostname]['vms'] }}"
+      loop_control:
+        loop_var: router
 ...

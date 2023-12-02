@@ -43,7 +43,7 @@ CREATE TABLE public.bgp_configuration (
     asnumber integer NOT NULL,
     bgprouterid character varying,
     neighbour jsonb[] NOT NULL,
-    network jsonb[] NOT NULL
+    network jsonb[]
 );
 
 
@@ -193,7 +193,8 @@ CREATE TABLE public.router_switch (
     switchid integer NOT NULL,
     portname character varying NOT NULL,
     interfacename character varying NOT NULL,
-    configuration jsonb
+    configuration jsonb,
+    peer character varying
 );
 
 

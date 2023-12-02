@@ -1,0 +1,45 @@
+---
+- name: Configure Network Advertisement (No mask / Standard Mask)
+  ansible.builtin.uri:
+    url: "https://{{ router.vbox_ip }}/restconf/data/Cisco-IOS-XE-native:native/router/bgp={{ hostvars[inventory_hostname]['bgp'][router.name]['asnumber'] }}/address-family/no-vrf/ipv4/unicast/ipv4-unicast/network/no-mask"
+    method: PATCH
+    body_format: json
+    user: "{{ router.users.0.username | default(username) }}"
+    password: "{{ router.users.0.password | default(password) }}"
+    force_basic_auth: true
+    validate_certs: no
+    headers:
+      Content-Type: application/yang-data+json
+    body:
+      Cisco-IOS-XE-bgp:no-mask:
+        - number: "{{ item.ip }}"
+  register: network_config_nomask
+  when: bgp_router.results[0].status != 404 and hostvars[inventory_hostname]['bgp'][router.name]['network'] and item.mask == "255.255.255.0" 
+  failed_when: network_config_nomask.status not in [200,201,204]
+  loop: "{{ network }}"
+  retries: 5
+  delay: 5
+  until: network_config_nomask.status not in [404, 409]
+- name: Configure Network Advertisement (With mask)
+  ansible.builtin.uri:
+    url: "https://{{ router.vbox_ip }}/restconf/data/Cisco-IOS-XE-native:native/router/bgp={{ hostvars[inventory_hostname]['bgp'][router.name]['asnumber'] }}/address-family/no-vrf/ipv4/unicast/ipv4-unicast/network/with-mask"
+    method: PATCH
+    body_format: json
+    user: "{{ router.users.0.username | default(username) }}"
+    password: "{{ router.users.0.password | default(password) }}"
+    force_basic_auth: true
+    validate_certs: no
+    headers:
+      Content-Type: application/yang-data+json
+    body:
+      Cisco-IOS-XE-bgp:with-mask:
+        - number: "{{ item.ip }}"
+          mask: "{{ item.mask }}"
+  register: network_config_withmask
+  when: bgp_router.results[0].status != 404 and hostvars[inventory_hostname]['bgp'][router.name]['network'] and item.mask != "255.255.255.0"
+  failed_when: network_config_withmask.status not in [200,201,204]
+  loop: "{{ network }}"
+  retries: 5
+  delay: 5
+  until: network_config_withmask.status not in [404, 409]
+...

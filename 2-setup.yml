@@ -43,7 +43,7 @@
       loop: "{{ hostvars[inventory_hostname].ovs|subelements('access', skip_missing=True) }}"
     become: yes
   - name: Change NIC 
-    shell: "vboxmanage modifyvm {{ item.0.name }} --nic{{ item.0.ports.index(item.1) + 2 }} bridged --bridgeadapter{{ item.0.ports.index(item.1) + 2 }} {{ item.1.ovsport }} --nictype{{ item.0.ports.index(item.1) + 2 }} virtio"
+    shell: "vboxmanage modifyvm {{ item.0.name }} --nic{{ item.0.ports.index(item.1) + 2 }} bridged --bridgeadapter{{ item.0.ports.index(item.1) + 2 }} {{ item.1 }} --nictype{{ item.0.ports.index(item.1) + 2 }} virtio"
     loop: "{{ hostvars[inventory_hostname].vms | subelements('ports') }}"
     loop_control:
       extended: true

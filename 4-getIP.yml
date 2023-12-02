@@ -17,7 +17,7 @@
       module: lineinfile
       backrefs: yes
       dest: "{{ inventory_file }}"
-      regexp: "^(.*- name: {{ item.item.item.name }}.*)$"
+      regexp: "^(.*- name: {{ item.item.item.name }})$"
       line: '\1\n              vbox_ip: {{ item.stdout_lines[0] }}'
       state: present
     loop: "{{ addresses | community.general.json_query('results[*]') }}"
