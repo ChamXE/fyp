@@ -1,0 +1,99 @@
+---
+- hosts: network
+  vars:
+    username: cisco
+    password: cisco123!
+  tasks:
+  - name: Check OVS ID for ONOS
+    become: yes
+    shell: "sudo ovs-ofctl show {{ item.name }} | grep -oEi 'dpid(.*)' | awk '{split($0,array,\":\"); print \"of:\" array[2]}'"
+    loop: "{{ hostvars[inventory_hostname]['ovs'] }}"
+    when: item.controller is defined
+    register: switchid
+  - name: Parse switchid array
+    set_fact:
+      switcharray: "{{ hostvars | community.general.json_query('*.switchid.results[*].stdout') }}"
+  - name: Initiate dictionaries
+    set_fact:
+      switchdict: {}
+      portdict: {}
+      interface_key: []
+      interface_array: []
+  - name: Add switches into switch dict
+    set_fact:
+      switchdict: "{{ switchdict | ansible.builtin.combine({hostvars[inventory_hostname]['ovs'][index]['name']: item}) }}"
+    loop: "{{ switcharray[0] }}"
+    loop_control:
+      index_var: index
+  - name: Get Port ID for ONOS
+    become: yes
+    shell: "sudo ovs-ofctl show {{ item.switchname }} | grep -oEi '(.)\\({{ item.portname }}\\)' | awk '{split($0,array,\"\\\\({{ item.portname }}\\\\)\"); print array[1]}'"
+    loop: "{{ hostvars[inventory_hostname]['interfaces'] }}"
+    register: portid
+  - name: Parse portid array
+    set_fact:
+      portarray: "{{ hostvars | community.general.json_query('*.portid.results[*].stdout') }}"
+  - name: Add ports into port dict
+    set_fact:
+      portdict: "{{ portdict | ansible.builtin.combine({hostvars[inventory_hostname]['interfaces'][index]['portname']: item}) }}"
+    loop: "{{ portarray[0] }}"
+    loop_control:
+      index_var: index
+  - name: Get MAC address
+    ansible.builtin.uri:
+      url: "https://{{ item.vbox_ip }}/restconf/data/Cisco-IOS-XE-interfaces-oper:interfaces/interface={{ hostvars[inventory_hostname]['bgpspeaker'][0]['interfacename'] }}/phys-address"
+      method: GET
+      user: "{{ item.users.0.username | default(username) }}"
+      password: "{{ item.users.0.password | default(password) }}"
+      force_basic_auth: true
+      validate_certs: no
+      headers:
+        Accept: application/yang-data+json
+    register: mac_address
+    when: item.name == hostvars[inventory_hostname]['bgpspeaker'][0]['routername']
+    failed_when: mac_address.status not in [200,201,204]
+    loop: "{{ hostvars[inventory_hostname]['vms'] }}"
+    retries: 5
+    delay: 5
+    until: mac_address.status not in [409, 404]
+  - name: Set MAC Address
+    set_fact:
+      onos_mac: "{{ item.json['Cisco-IOS-XE-interfaces-oper:phys-address'] }}"
+    when: item.json is defined
+    loop: "{{ mac_address.results }}"
+  - name: Set Interface Key
+    set_fact:
+      interface_key: "{{ interface_key + [switchdict[item.switchname] + '/' + portdict[item.portname]] }}"
+    loop: "{{ hostvars[inventory_hostname]['interfaces'] }}"
+  - name: Set Interface Object
+    set_fact:
+      interface_array: "{{ interface_array + [{ interface_key[index]: { 'interfaces': [{ 'name': item.portname, 'ips': [item.peer], 'mac': onos_mac }] }}] }}"
+    loop: "{{ hostvars[inventory_hostname]['interfaces'] }}"
+    loop_control:
+      index_var: index
+  - name: Configure interface
+    ansible.builtin.uri:
+      url: "http://10.100.10.30:8181/onos/v1/network/configuration/ports"
+      method: POST
+      body_format: json
+      user: onos
+      password: rocks
+      force_basic_auth: true
+      validate_certs: no
+      headers:
+        Content-Type: application/json
+      body: "{{ item }}"
+    register: interface
+    failed_when: interface.status not in [200,201,204]
+    loop: "{{ interface_array }}"
+# Check whether app exist
+# If not exist create app
+# If exist get bgpspeakers out
+# Build new bgpspeaker element
+# Insert new bgpspeaker element into existing bgpspeakers
+# Post the modified existing bgpspeakers back
+  - name: Debug
+    debug:
+      msg: "{{ switchdict[item.switchname] }}/{{ portdict[item.portname] }}"
+    loop: "{{ hostvars[inventory_hostname]['interfaces'] }}"
+...
