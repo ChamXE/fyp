@@ -10,9 +10,11 @@
     loop: "{{ hostvars[inventory_hostname]['ovs'] }}"
     when: item.controller is defined
     register: switchid
+
   - name: Parse switchid array
     set_fact:
       switcharray: "{{ hostvars | community.general.json_query('*.switchid.results[*].stdout') }}"
+
   - name: Initiate dictionaries
     set_fact:
       switchdict: {}
@@ -21,26 +23,31 @@
       interface_array: []
       peers: []
       ori_bgpspeakers: []
+
   - name: Add switches into switch dict
     set_fact:
       switchdict: "{{ switchdict | ansible.builtin.combine({hostvars[inventory_hostname]['ovs'][index]['name']: item}) }}"
     loop: "{{ switcharray[0] }}"
     loop_control:
       index_var: index
+
   - name: Get Port ID for ONOS
     become: yes
     shell: "sudo ovs-ofctl show {{ item.switchname }} | grep -oEi '(.)\\({{ item.portname }}\\)' | awk '{split($0,array,\"\\\\({{ item.portname }}\\\\)\"); print array[1]}'"
     loop: "{{ hostvars[inventory_hostname]['interfaces'] }}"
     register: portid
+
   - name: Parse portid array
     set_fact:
       portarray: "{{ hostvars | community.general.json_query('*.portid.results[*].stdout') }}"
+
   - name: Add ports into port dict
     set_fact:
       portdict: "{{ portdict | ansible.builtin.combine({hostvars[inventory_hostname]['interfaces'][index]['portname']: item}) }}"
     loop: "{{ portarray[0] }}"
     loop_control:
       index_var: index
+
   - name: Get MAC address
     ansible.builtin.uri:
       url: "https://{{ item.vbox_ip }}/restconf/data/Cisco-IOS-XE-interfaces-oper:interfaces/interface={{ hostvars[inventory_hostname]['bgpspeaker'][0]['interfacename'] }}/phys-address"
@@ -58,21 +65,25 @@
     retries: 5
     delay: 5
     until: mac_address.status not in [409, 404]
+
   - name: Set MAC Address
     set_fact:
       onos_mac: "{{ item.json['Cisco-IOS-XE-interfaces-oper:phys-address'] }}"
     when: item.json is defined
     loop: "{{ mac_address.results }}"
+
   - name: Set Interface Key
     set_fact:
       interface_key: "{{ interface_key + [switchdict[item.switchname] + '/' + portdict[item.portname]] }}"
     loop: "{{ hostvars[inventory_hostname]['interfaces'] }}"
+
   - name: Set Interface Object
     set_fact:
       interface_array: "{{ interface_array + [{ interface_key[index]: { 'interfaces': [{ 'name': item.portname, 'ips': [item.peer], 'mac': onos_mac }] }}] }}"
     loop: "{{ hostvars[inventory_hostname]['interfaces'] }}"
     loop_control:
       index_var: index
+
   - name: Configure interface
     ansible.builtin.uri:
       url: "http://10.100.10.30:8181/onos/v1/network/configuration/ports"
@@ -88,7 +99,7 @@
     register: interface
     failed_when: interface.status not in [200,201,204]
     loop: "{{ interface_array }}"
-# Check whether app exist
+
   - name: Check org.onosproject.router existence
     ansible.builtin.uri:
       url: "http://10.100.10.30:8181/onos/v1/network/configuration/apps/org.onosproject.router/bgp"
@@ -101,7 +112,7 @@
         Accept: application/json
     register: bgp_exist
     failed_when: bgp_exist.status not in [200,201,204,404]
-# If not exist create app
+
   - name: Create org.onosproject.router if not exist
     ansible.builtin.uri:
       url: "http://10.100.10.30:8181/onos/v1/network/configuration/apps"
@@ -117,25 +128,26 @@
         org.onosproject.router:
           bgp: {}
     when: bgp_exist.status == 404
-# If exist get bgpspeakers out
+
   - name: Retrieve bgpspeakers from GET request
     set_fact:
       ori_bgpspeakers: "{{ bgp_exist.json.bgpSpeakers }}"
     when: bgp_exist.json.bgpSpeakers is defined
-# Build new bgpspeaker element
+
   - name: Build peer array
     set_fact:
       peers: "{{ peers + [item.source] }}"
     loop: "{{ hostvars[inventory_hostname]['interfaces'] }}"
+
   - name: Build connectpoint object
     shell: "sudo ovs-ofctl show {{ hostvars[inventory_hostname]['bgpspeaker'][0]['switchname'] }} | grep -oEi '(.)\\({{ hostvars[inventory_hostname]['bgpspeaker'][0]['portname'] }}\\)' | awk '{split($0,array,\"\\\\({{ hostvars[inventory_hostname]['bgpspeaker'][0]['portname'] }}\\\\)\"); print \"{{ switchdict[hostvars[inventory_hostname]['bgpspeaker'][0]['switchname']] }}/\" array[1]}'"
     become: yes
     register: connectpoint
-# Insert new bgpspeaker element into existing bgpspeakers
+
   - name: Add into ori_bgpspeakers
     set_fact:
       ori_bgpspeakers: "{{ ori_bgpspeakers + [{ 'name': hostvars[inventory_hostname]['bgpspeaker'][0]['portname'], 'connectPoint': connectpoint.stdout, 'peers': peers }] }}"
-# Post the modified existing bgpspeakers back
+
   - name: Post bgpspeaker configuration
     ansible.builtin.uri:
       url: "http://10.100.10.30:8181/onos/v1/network/configuration/apps/org.onosproject.router/bgp"
@@ -151,4 +163,26 @@
         bgpSpeakers: "{{ ori_bgpspeakers }}"
     register: bgpspeaker_response
     failed_when: bgpspeaker_response.status not in [200,201,204]
+
+  - name: Add temp host
+    ansible.builtin.add_host:
+      groups: temp
+      name: 10.100.10.30
+
+- hosts: temp
+  gather_facts: no
+  tasks:
+    - name: Deactivate SDNIP app
+      ansible.builtin.shell:
+        chdir: ~/fyp/
+        cmd: "./deactivateApp.exp sdnip"
+
+    - name: Pause a while
+      ansible.builtin.pause:
+        seconds: 5
+
+    - name: Activate SDNIP app
+      ansible.builtin.shell:
+        chdir: ~/fyp/
+        cmd: "./activateApp.exp sdnip"
 ...

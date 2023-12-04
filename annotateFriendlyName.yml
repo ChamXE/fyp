@@ -8,32 +8,39 @@
     loop: "{{ hostvars[inventory_hostname]['ovs'] }}"
     when: item.controller is defined
     register: switchid
+
   - name: Parse switchid array
     set_fact:
       switcharray: "{{ hostvars | community.general.json_query('*.switchid.results[*].stdout') }}"
+
   - name: Initiate dictionaries
     set_fact:
       switchdict: {}
       hostdict: {}
+
   - name: Add switches into switch dict
     set_fact:
       switchdict: "{{ switchdict | ansible.builtin.combine({hostvars[inventory_hostname]['ovs'][index]['name']: item}) }}"
     loop: "{{ switcharray[0] }}"
     loop_control:
       index_var: index
+
   - name: Get MAC address
     shell: "vboxmanage showvminfo {{ item.0.name }} | grep -oEi \"MAC: ([[:alnum:]]{12}).*{{ item.1 }}'\" | grep -oE '[[:alnum:]]{12}' | sed 's/.\\{2\\}/&:/g' | awk '{print substr($0,0,17) \"/None\"}'"
     loop: "{{ hostvars[inventory_hostname]['vms']|subelements('ports', skip_missing=True) }}"
     register: hostmac
+
   - name: Parse hostmac array
     set_fact:
       hostarray: "{{ hostvars | community.general.json_query('*.hostmac.results[*].stdout') }}"
+
   - name: Add hosts into host dict
     set_fact:
       hostdict: "{{ hostdict | ansible.builtin.combine({hostarray[0][index]: item.0.name}) }}"
     loop: "{{ hostvars[inventory_hostname]['vms']|subelements('ports', skip_missing=True) }}"
     loop_control:
       index_var: index
+
   - name: Add temp host
     ansible.builtin.add_host:
       groups: temp
@@ -47,6 +54,7 @@
         chdir: ~/fyp/
         cmd: "./annotateDevice.exp {{ item.value }} {{ item.key }}"
       loop: "{{ lookup('ansible.builtin.dict', switchdict) }}"
+
     - name: Annotate host
       ansible.builtin.shell:
         chdir: ~/fyp/

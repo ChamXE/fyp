@@ -1,8 +1,4 @@
 ---
-#- name: Configure neighbour
-#  debug:
-#    msg: "{{ router.name }} {{ item.id }}"
-#  loop: "{{ hostvars[inventory_hostname]['bgp'][router.name]['neighbour'] }}"
 - name: Configure Neighbour
   ansible.builtin.uri:
     url: "https://{{ router.vbox_ip }}/restconf/data/Cisco-IOS-XE-native:native/router/bgp={{ hostvars[inventory_hostname]['bgp'][router.name]['asnumber'] }}/neighbor"
@@ -25,6 +21,7 @@
   retries: 5
   delay: 5
   until: neighbour_config.status not in [404, 409]
+
 - name: Configure eBGP Multihop
   ansible.builtin.uri:
     url: "https://{{ router.vbox_ip }}/restconf/data/Cisco-IOS-XE-native:native/router/bgp={{ hostvars[inventory_hostname]['bgp'][router.name]['asnumber'] }}/neighbor={{ item.id }}"
@@ -47,6 +44,7 @@
   retries: 5
   delay: 5
   until: ebgpmultihop_config.status not in [404, 409]
+
 - name: Activate Neighbour
   ansible.builtin.uri:
     url: "https://{{ router.vbox_ip }}/restconf/data/Cisco-IOS-XE-native:native/router/bgp={{ hostvars[inventory_hostname]['bgp'][router.name]['asnumber'] }}/address-family/no-vrf/ipv4/unicast/ipv4-unicast/neighbor"
@@ -69,6 +67,7 @@
   retries: 5
   delay: 5
   until: activate_neighbour.status not in [404, 409]
+
 - name: Pass network down to configure network for advertising
   vars:
     network: "{{ hostvars[inventory_hostname]['bgp'][router.name]['network'] }}"

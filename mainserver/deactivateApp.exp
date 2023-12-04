@@ -41,9 +41,9 @@ if {$force_conservative} {
 #
 # -Don
 
-set speakername [lindex $argv 0]
+set appname [lindex $argv 0]
 set timeout -1
-spawn ssh onos@localhost -p 8101 -t {bgp-speaker-remove} $speakername
+spawn ssh onos@localhost -p 8101 -t {app} deactivate $appname
 match_max 100000
 expect -exact "Password authentication\r\r
 Password: "

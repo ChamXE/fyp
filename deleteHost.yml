@@ -6,6 +6,7 @@
     shell: "ip netns delete {{ item.name }}"
     loop: "{{ hostvars[inventory_hostname]['namespaces'] }}"
     when: item is defined
+
   - name: Delete port from OVS
     shell: "ovs-vsctl del-port {{ item.ovs }} {{ item.ovsportname }}"
     loop: "{{ hostvars[inventory_hostname]['namespaces'] }}"

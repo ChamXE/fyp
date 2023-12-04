@@ -24,6 +24,7 @@
       retries: 5
       delay: 5
       until: bgp_router.status not in [409, 404]
+
     - name: Configure Router ID
       ansible.builtin.uri:
         url: "https://{{ item.vbox_ip }}/restconf/data/Cisco-IOS-XE-native:native/router/bgp={{ hostvars[inventory_hostname]['bgp'][item.name]['asnumber'] }}"
@@ -47,6 +48,7 @@
       retries: 5
       delay: 5
       until: router_id.status not in [409, 404]
+
     - name: Add IPv4 Unicast property in address-family
       ansible.builtin.uri:
         url: "https://{{ item.vbox_ip }}/restconf/data/Cisco-IOS-XE-native:native/router/bgp={{ hostvars[inventory_hostname]['bgp'][item.name]['asnumber'] }}/address-family/no-vrf/ipv4"
@@ -69,10 +71,21 @@
       retries: 5
       delay: 5
       until: add_ipv4unicast.status not in [409, 404]
+
     - name: Pass router object down to perform neighbour and network configuration
       include_tasks:
         file: bgpconfiguration/main.yml
       loop: "{{ hostvars[inventory_hostname]['vms'] }}"
       loop_control:
         loop_var: router
+
+    - name: Save config
+      ansible.builtin.uri:
+        url: "https://{{ item.vbox_ip }}/restconf/operations/cisco-ia:save-config"
+        method: POST
+        user: "{{ item.users.0.username | default(username) }}"
+        password: "{{ item.users.0.password | default(password) }}"
+        force_basic_auth: true
+        validate_certs: no
+      loop: "{{ hostvars[inventory_hostname]['vms'] }}"
 ...

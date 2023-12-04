@@ -7,33 +7,81 @@
     loop: "{{ hostvars[inventory_hostname]['ovs'] }}"
     when: item.controller is defined
     register: switchid
+
   - name: Parse switchid array
     set_fact:
       switcharray: "{{ hostvars | community.general.json_query('*.switchid.results[*].stdout') }}"
+
   - name: Initiate dictionaries
     set_fact:
       switchdict: {}
       portdict: {}
+
   - name: Add switches into switch dict
     set_fact:
       switchdict: "{{ switchdict | ansible.builtin.combine({hostvars[inventory_hostname]['ovs'][index]['name']: item}) }}"
     loop: "{{ switcharray[0] }}"
     loop_control:
       index_var: index
+
   - name: Get Port ID for ONOS
     become: yes
     shell: "sudo ovs-ofctl show {{ item.switchname }} | grep -oEi '(.)\\({{ item.portname }}\\)' | awk '{split($0,array,\"\\\\({{ item.portname }}\\\\)\"); print array[1]}'"
     loop: "{{ hostvars[inventory_hostname]['interfaces'] }}"
     register: portid
+
   - name: Parse portid array
     set_fact:
       portarray: "{{ hostvars | community.general.json_query('*.portid.results[*].stdout') }}"
+
   - name: Add ports into port dict
     set_fact:
       portdict: "{{ portdict | ansible.builtin.combine({hostvars[inventory_hostname]['interfaces'][index]['portname']: item}) }}"
     loop: "{{ portarray[0] }}"
     loop_control:
       index_var: index
+
+  - name: GET org.onosproject.router existence
+    ansible.builtin.uri:
+      url: "http://10.100.10.30:8181/onos/v1/network/configuration/apps/org.onosproject.router/bgp"
+      method: GET
+      user: onos
+      password: rocks
+      force_basic_auth: true
+      validate_certs: no
+      headers:
+        Accept: application/json
+    register: bgp_exist
+    failed_when: bgp_exist.status not in [200,201,204,404]
+
+  - name: Set BGPSpeakers array
+    set_fact:
+      ori_bgpspeakers: "{{ bgp_exist.json.bgpSpeakers }}"
+      new_bgpspeakers: []
+    when: bgp_exist.json.bgpSpeakers is defined
+
+  - name: Remove the bgpspeaker to remove from the array
+    set_fact:
+      new_bgpspeakers: "{{ new_bgpspeakers + [item] }}"
+    when: item.name != hostvars[inventory_hostname]['bgpspeaker'][0]['portname']
+    loop: "{{ ori_bgpspeakers }}"
+
+  - name: Post bgpspeaker configuration to delete the one bgpspeaker
+    ansible.builtin.uri:
+      url: "http://10.100.10.30:8181/onos/v1/network/configuration/apps/org.onosproject.router/bgp"
+      method: POST
+      body_format: json
+      user: onos
+      password: rocks
+      force_basic_auth: true
+      validate_certs: no
+      headers:
+        Content-Type: application/json
+      body:
+        bgpSpeakers: "{{ new_bgpspeakers }}"
+    register: bgpspeaker_response
+    failed_when: bgpspeaker_response.status not in [200,201,204]
+
   - name: Add temp host
     ansible.builtin.add_host:
       groups: temp
@@ -47,8 +95,18 @@
         chdir: ~/fyp/
         cmd: "./removeInterface.exp {{ switchdict[item.switchname] }}/{{ portdict[item.portname] }} {{ item.portname }}"
       loop: "{{ hostvars[inventory_hostname]['interfaces'] }}"
-    - name: Remove BGP Speaker
+
+    - name: Deactivate SDNIP app
       ansible.builtin.shell:
         chdir: ~/fyp/
-        cmd: "./removeBGPSpeaker.exp {{ hostvars[inventory_hostname]['bgpspeaker'][0]['portname'] }}"
+        cmd: "./deactivateApp.exp sdnip"
+
+    - name: Pause a while
+      ansible.builtin.pause:
+        seconds: 5
+
+    - name: Activate SDNIP app
+      ansible.builtin.shell:
+        chdir: ~/fyp/
+        cmd: "./activateApp.exp sdnip"
 ...

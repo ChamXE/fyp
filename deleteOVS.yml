@@ -7,10 +7,12 @@
     shell: "sudo ovs-ofctl show {{ item.name }} | grep -oEi 'dpid(.*)' | awk '{split($0,array,\":\"); print \"of:\" array[2]}'"
     loop: "{{ hostvars[inventory_hostname]['ovs'] }}"
     register: deviceid
+
   - name: Delete OVS 
     become: yes
     shell: "sudo ovs-vsctl --if-exists del-br {{ item.name }}"
     loop: "{{ hostvars[inventory_hostname]['ovs'] }}"
+
   - name: Add temp host
     ansible.builtin.add_host:
       groups: temp
@@ -22,6 +24,7 @@
   - name: Parse deviceid array
     set_fact:
       array: "{{ hostvars | community.general.json_query('*.deviceid.results[*].stdout') }}"
+
   - name: Connect to fyp-hp1 to remove ONOS entry
     ansible.builtin.shell:
       chdir: ~/fyp/
