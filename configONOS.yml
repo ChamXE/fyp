@@ -19,6 +19,8 @@
       portdict: {}
       interface_key: []
       interface_array: []
+      peers: []
+      ori_bgpspeakers: []
   - name: Add switches into switch dict
     set_fact:
       switchdict: "{{ switchdict | ansible.builtin.combine({hostvars[inventory_hostname]['ovs'][index]['name']: item}) }}"
@@ -87,13 +89,66 @@
     failed_when: interface.status not in [200,201,204]
     loop: "{{ interface_array }}"
 # Check whether app exist
+  - name: Check org.onosproject.router existence
+    ansible.builtin.uri:
+      url: "http://10.100.10.30:8181/onos/v1/network/configuration/apps/org.onosproject.router/bgp"
+      method: GET
+      user: onos
+      password: rocks
+      force_basic_auth: true
+      validate_certs: no
+      headers:
+        Accept: application/json
+    register: bgp_exist
+    failed_when: bgp_exist.status not in [200,201,204,404]
 # If not exist create app
+  - name: Create org.onosproject.router if not exist
+    ansible.builtin.uri:
+      url: "http://10.100.10.30:8181/onos/v1/network/configuration/apps"
+      method: POST
+      body_format: json
+      user: onos
+      password: rocks
+      force_basic_auth: true
+      validate_certs: no
+      headers:
+        Content-Type: application/json
+      body:
+        org.onosproject.router:
+          bgp: {}
+    when: bgp_exist.status == 404
 # If exist get bgpspeakers out
+  - name: Retrieve bgpspeakers from GET request
+    set_fact:
+      ori_bgpspeakers: "{{ bgp_exist.json.bgpSpeakers }}"
+    when: bgp_exist.json.bgpSpeakers is defined
 # Build new bgpspeaker element
-# Insert new bgpspeaker element into existing bgpspeakers
-# Post the modified existing bgpspeakers back
-  - name: Debug
-    debug:
-      msg: "{{ switchdict[item.switchname] }}/{{ portdict[item.portname] }}"
+  - name: Build peer array
+    set_fact:
+      peers: "{{ peers + [item.source] }}"
     loop: "{{ hostvars[inventory_hostname]['interfaces'] }}"
+  - name: Build connectpoint object
+    shell: "sudo ovs-ofctl show {{ hostvars[inventory_hostname]['bgpspeaker'][0]['switchname'] }} | grep -oEi '(.)\\({{ hostvars[inventory_hostname]['bgpspeaker'][0]['portname'] }}\\)' | awk '{split($0,array,\"\\\\({{ hostvars[inventory_hostname]['bgpspeaker'][0]['portname'] }}\\\\)\"); print \"{{ switchdict[hostvars[inventory_hostname]['bgpspeaker'][0]['switchname']] }}/\" array[1]}'"
+    become: yes
+    register: connectpoint
+# Insert new bgpspeaker element into existing bgpspeakers
+  - name: Add into ori_bgpspeakers
+    set_fact:
+      ori_bgpspeakers: "{{ ori_bgpspeakers + [{ 'name': hostvars[inventory_hostname]['bgpspeaker'][0]['portname'], 'connectPoint': connectpoint.stdout, 'peers': peers }] }}"
+# Post the modified existing bgpspeakers back
+  - name: Post bgpspeaker configuration
+    ansible.builtin.uri:
+      url: "http://10.100.10.30:8181/onos/v1/network/configuration/apps/org.onosproject.router/bgp"
+      method: POST
+      body_format: json
+      user: onos
+      password: rocks
+      force_basic_auth: true
+      validate_certs: no
+      headers:
+        Content-Type: application/json
+      body: 
+        bgpSpeakers: "{{ ori_bgpspeakers }}"
+    register: bgpspeaker_response
+    failed_when: bgpspeaker_response.status not in [200,201,204]
 ...
