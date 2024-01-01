@@ -71,6 +71,48 @@ ALTER SEQUENCE public.bgp_configuration_configid_seq OWNED BY public.bgp_configu
 
 
 --
+-- Name: custom_intent; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.custom_intent (
+    configid integer NOT NULL,
+    routerid integer NOT NULL,
+    source character varying NOT NULL,
+    intermediate character varying[] NOT NULL,
+    destination character varying NOT NULL,
+    projectid integer NOT NULL,
+    sourcekey character varying NOT NULL,
+    destkey character varying NOT NULL,
+    protocol character varying,
+    ethertype character varying NOT NULL
+);
+
+
+ALTER TABLE public.custom_intent OWNER TO postgres;
+
+--
+-- Name: custom_intent_configid_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.custom_intent_configid_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER TABLE public.custom_intent_configid_seq OWNER TO postgres;
+
+--
+-- Name: custom_intent_configid_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.custom_intent_configid_seq OWNED BY public.custom_intent.configid;
+
+
+--
 -- Name: host; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -321,6 +363,13 @@ ALTER TABLE ONLY public.bgp_configuration ALTER COLUMN configid SET DEFAULT next
 
 
 --
+-- Name: custom_intent configid; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.custom_intent ALTER COLUMN configid SET DEFAULT nextval('public.custom_intent_configid_seq'::regclass);
+
+
+--
 -- Name: host hostid; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -356,11 +405,229 @@ ALTER TABLE ONLY public.switch ALTER COLUMN switchid SET DEFAULT nextval('public
 
 
 --
+-- Data for Name: account; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.account (username, password, email) FROM stdin;
+lingtc	$2b$10$FVQHkpaV2fdKcc12Yjmz/eGnA85KzgJdAi9GmPu.mKK3x5ceY81CW	lingtc@gmail.com
+rennaux	$2b$10$mvbB5/VnYHiYD5As77nTX.JXTMU1KNlfG56S.5DbL3EOvdKfFd5Yy	xuaner11221@outlook.com
+\.
+
+
+--
+-- Data for Name: bgp_configuration; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.bgp_configuration (configid, routerid, asnumber, bgprouterid, neighbour, network) FROM stdin;
+3	24	1001	1.1.1.1	{"{\\"id\\": \\"192.168.10.2\\", \\"remoteas\\": 1000, \\"ebgpmultihop\\": true}"}	{"{\\"ip\\": \\"192.168.1.0\\", \\"mask\\": \\"255.255.255.0\\"}","{\\"ip\\": \\"192.168.2.0\\", \\"mask\\": \\"255.255.255.0\\"}"}
+5	25	1002	2.2.2.2	{"{\\"id\\": \\"192.168.10.6\\", \\"remoteas\\": 1000, \\"ebgpmultihop\\": true}"}	{"{\\"ip\\": \\"192.168.3.0\\", \\"mask\\": \\"255.255.255.0\\"}","{\\"ip\\": \\"192.168.4.0\\", \\"mask\\": \\"255.255.255.0\\"}"}
+6	26	1003	3.3.3.3	{"{\\"id\\": \\"192.168.10.10\\", \\"remoteas\\": 1000, \\"ebgpmultihop\\": true}"}	{"{\\"ip\\": \\"192.168.5.0\\", \\"mask\\": \\"255.255.255.0\\"}","{\\"ip\\": \\"192.168.6.0\\", \\"mask\\": \\"255.255.255.0\\"}"}
+7	27	1004	4.4.4.4	{"{\\"id\\": \\"192.168.10.14\\", \\"remoteas\\": 1000, \\"ebgpmultihop\\": true}"}	{"{\\"ip\\": \\"192.168.7.0\\", \\"mask\\": \\"255.255.255.0\\"}","{\\"ip\\": \\"192.168.8.0\\", \\"mask\\": \\"255.255.255.0\\"}"}
+11	28	1000	5.5.5.5	{"{\\"id\\": \\"192.168.10.1\\", \\"remoteas\\": 1001, \\"ebgpmultihop\\": true}","{\\"id\\": \\"192.168.10.5\\", \\"remoteas\\": 1002, \\"ebgpmultihop\\": true}","{\\"id\\": \\"192.168.10.9\\", \\"remoteas\\": 1003, \\"ebgpmultihop\\": true}","{\\"id\\": \\"192.168.10.13\\", \\"remoteas\\": 1004, \\"ebgpmultihop\\": true}"}	\N
+\.
+
+
+--
+-- Data for Name: custom_intent; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.custom_intent (configid, routerid, source, intermediate, destination, projectid, sourcekey, destkey, protocol, ethertype) FROM stdin;
+2	27	R4	{S2,S3,S1}	R2	10	192.168.7.0/24	192.168.4.0/24		IPV4
+1	24	R1	{S1,S3,S2}	R3	10	192.168.1.0/24	192.168.5.0/24		IPV4
+\.
+
+
+--
+-- Data for Name: host; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.host (hostid, projectid, hostname, ip, subnet, defaultgateway) FROM stdin;
+13	10	H11	192.168.1.11	255.255.255.0	24
+14	10	H12	192.168.2.11	255.255.255.0	24
+15	10	H21	192.168.3.11	255.255.255.0	25
+16	10	H22	192.168.4.11	255.255.255.0	25
+17	10	H31	192.168.5.11	255.255.255.0	26
+18	10	H32	192.168.6.11	255.255.255.0	26
+19	10	H41	192.168.7.11	255.255.255.0	27
+20	10	H42	192.168.8.11	255.255.255.0	27
+\.
+
+
+--
+-- Data for Name: project; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.project (projectid, username, projectname, serverid, generated, ready) FROM stdin;
+10	rennaux	Test-SDNIP	1	f	f
+\.
+
+
+--
+-- Data for Name: router; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.router (routerid, projectid, routername, management, configuration) FROM stdin;
+24	10	R1	192.168.56.38	{"users": [{"password": "20343132", "username": "rennaux", "privilege": 15}], "routes": [{"mask": "0.0.0.0", "prefix": "0.0.0.0", "exitInterface": "GigabitEthernet4"}]}
+25	10	R2	192.168.56.39	{"users": [{"password": "20343132", "username": "rennaux", "privilege": 15}], "routes": [{"mask": "0.0.0.0", "prefix": "0.0.0.0", "exitInterface": "GigabitEthernet4"}]}
+26	10	R3	192.168.56.40	{"users": [{"password": "20343132", "username": "rennaux", "privilege": 15}], "routes": [{"mask": "0.0.0.0", "prefix": "0.0.0.0", "exitInterface": "GigabitEthernet4"}]}
+27	10	R4	192.168.56.42	{"users": [{"password": "20343132", "username": "rennaux", "privilege": 15}], "routes": [{"mask": "0.0.0.0", "prefix": "0.0.0.0", "exitInterface": "GigabitEthernet4"}]}
+28	10	R5	192.168.56.41	{"users": [{"password": "20343132", "username": "rennaux", "privilege": 15}], "routes": [{"mask": "0.0.0.0", "prefix": "0.0.0.0", "exitInterface": "GigabitEthernet2"}]}
+\.
+
+
+--
+-- Data for Name: router_switch; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.router_switch (projectid, routerid, switchid, portname, interfacename, configuration, peer) FROM stdin;
+10	26	35	R3S31	GigabitEthernet2	{"192.168.5.1": "255.255.255.0"}	\N
+10	27	37	R4S41	GigabitEthernet2	{"192.168.7.1": "255.255.255.0"}	\N
+10	24	31	R1S11	GigabitEthernet2	{"192.168.1.1": "255.255.255.0"}	\N
+10	28	30	R5S3	GigabitEthernet2	{"192.168.10.2": "255.255.255.252", "192.168.10.6": "255.255.255.252", "192.168.10.10": "255.255.255.252", "192.168.10.14": "255.255.255.252"}	\N
+10	24	28	R1S1	GigabitEthernet4	{"192.168.10.1": "255.255.255.252"}	192.168.10.2
+10	25	28	R2S1	GigabitEthernet4	{"192.168.10.5": "255.255.255.252"}	192.168.10.6
+10	26	29	R3S2	GigabitEthernet4	{"192.168.10.9": "255.255.255.252"}	192.168.10.10
+10	27	29	R4S2	GigabitEthernet4	{"192.168.10.13": "255.255.255.252"}	192.168.10.14
+10	25	34	R2S22	GigabitEthernet3	{"192.168.4.1": "255.255.255.0"}	\N
+10	24	32	R1S12	GigabitEthernet3	{"192.168.2.1": "255.255.255.0"}	\N
+10	26	36	R3S32	GigabitEthernet3	{"192.168.6.1": "255.255.255.0"}	\N
+10	25	33	R2S21	GigabitEthernet2	{"192.168.3.1": "255.255.255.0"}	\N
+10	27	38	R4S42	GigabitEthernet3	{"192.168.8.1": "255.255.255.0"}	\N
+\.
+
+
+--
+-- Data for Name: server; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.server (serverid, servername, ip, rootcredential) FROM stdin;
+4	fyp-hp4	192.168.0.4	{"password": "20343132", "username": "rennaux"}
+1	fyp-hp1	192.168.0.1	{"password": "20343132", "username": "rennaux"}
+5	fyp-hp5	192.168.0.5	{"password": "20343132", "username": "rennaux"}
+3	fyp-hp3	192.168.0.3	{"password": "20343132", "username": "rennaux"}
+2	fyp-hp2	192.168.0.2	{"password": "20343132", "username": "rennaux"}
+\.
+
+
+--
+-- Data for Name: session; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.session (sid, sess, expire) FROM stdin;
+LNmcTyMRzPHp3tAMsYNTc0RdIQXAF9u4	{"cookie":{"originalMaxAge":3600000,"expires":"2024-01-01T16:54:56.354Z","secure":true,"httpOnly":true,"path":"/"},"username":"rennaux"}	2024-01-01 16:54:57+00
+\.
+
+
+--
+-- Data for Name: switch; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.switch (switchid, projectid, switchname, controller) FROM stdin;
+28	10	S1	10.100.10.30
+29	10	S2	10.100.10.30
+30	10	S3	10.100.10.30
+31	10	S11	\N
+32	10	S12	\N
+33	10	S21	\N
+34	10	S22	\N
+35	10	S31	\N
+36	10	S32	\N
+37	10	S41	\N
+38	10	S42	\N
+\.
+
+
+--
+-- Data for Name: switch_host; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.switch_host (projectid, switchid, hostid, portname) FROM stdin;
+10	31	13	S11H11
+10	32	14	S12H12
+10	33	15	S21H21
+10	34	16	S22H22
+10	35	17	S31H31
+10	36	18	S32H32
+10	37	19	S41H41
+10	38	20	S42H42
+\.
+
+
+--
+-- Data for Name: switch_switch; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.switch_switch (projectid, switchid_src, switchid_dst, portname) FROM stdin;
+10	28	30	S1S3
+10	30	28	S3S1
+10	29	30	S2S3
+10	30	29	S3S2
+\.
+
+
+--
+-- Name: bgp_configuration_configid_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.bgp_configuration_configid_seq', 11, true);
+
+
+--
+-- Name: custom_intent_configid_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.custom_intent_configid_seq', 2, true);
+
+
+--
+-- Name: host_hostid_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.host_hostid_seq', 20, true);
+
+
+--
+-- Name: project_projectid_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.project_projectid_seq', 10, true);
+
+
+--
+-- Name: router_routerid_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.router_routerid_seq', 28, true);
+
+
+--
+-- Name: server_serverid_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.server_serverid_seq', 6, false);
+
+
+--
+-- Name: switch_switchid_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.switch_switchid_seq', 38, true);
+
+
+--
 -- Name: bgp_configuration bgp_configuration_pk; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.bgp_configuration
     ADD CONSTRAINT bgp_configuration_pk PRIMARY KEY (configid);
+
+
+--
+-- Name: custom_intent custom_intent_pk; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.custom_intent
+    ADD CONSTRAINT custom_intent_pk PRIMARY KEY (configid);
 
 
 --
@@ -449,6 +716,22 @@ ALTER TABLE ONLY public.account
 
 ALTER TABLE ONLY public.bgp_configuration
     ADD CONSTRAINT bgp_configuration_router_routerid_fk FOREIGN KEY (routerid) REFERENCES public.router(routerid) ON UPDATE CASCADE ON DELETE CASCADE;
+
+
+--
+-- Name: custom_intent custom_intent_project_projectid_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.custom_intent
+    ADD CONSTRAINT custom_intent_project_projectid_fk FOREIGN KEY (projectid) REFERENCES public.project(projectid);
+
+
+--
+-- Name: custom_intent custom_intent_router_routerid_fk; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.custom_intent
+    ADD CONSTRAINT custom_intent_router_routerid_fk FOREIGN KEY (routerid) REFERENCES public.router(routerid) ON UPDATE CASCADE ON DELETE CASCADE;
 
 
 --
