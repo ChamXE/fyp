@@ -1,0 +1,140 @@
+---
+- hosts: network
+  vars:
+    username: cisco
+    password: cisco123!
+    ports: []
+    temp1: []
+    temp2: []
+    temp3: []
+    temp4: []
+    portdict: {}
+    onos_mac: {}
+    switcharray: []
+    switchdict: {}
+  tasks:
+    - name: Get MAC address
+      ansible.builtin.uri:
+        url: "https://{{ item.vbox_ip }}/restconf/data/Cisco-IOS-XE-interfaces-oper:interfaces/interface={{ hostvars[inventory_hostname]['bgpspeaker'][0]['interfacename'] }}/phys-address"
+        method: GET
+        user: "{{ item.users.0.username | default(username) }}"
+        password: "{{ item.users.0.password | default(password) }}"
+        force_basic_auth: true
+        validate_certs: no
+        headers:
+          Accept: application/yang-data+json
+      register: mac_address
+      failed_when: mac_address.status not in [200,201,204]
+      loop: "{{ hostvars[inventory_hostname]['vms'] }}"
+      retries: 5
+      delay: 5
+      until: mac_address.status not in [409, 404]
+
+    - name: Set MAC Address
+      set_fact:
+        onos_mac: "{{ onos_mac | ansible.builtin.combine({item.item.name: item.json['Cisco-IOS-XE-interfaces-oper:phys-address']}) }}"
+      when: item.json is defined
+      loop: "{{ mac_address.results }}"
+
+    - name: Debug
+      debug:
+        msg: "{{ onos_mac }}"
+
+    - name: Retrieve access and patch ports
+      set_fact:
+        accessport: "{{ hostvars | community.general.json_query('*.ovs[*].access[]') }}"
+        patchport: "{{ hostvars | community.general.json_query('*.ovs[*].patch[*].name[]') }}"
+
+    - name: Add access ports in array
+      set_fact:
+        temp1: "{{ temp1 + [{ item.1: { 'switch': item.0.name }}] }}"
+      loop: "{{ hostvars[inventory_hostname]['ovs']|subelements('access', skip_missing=True) }}"
+
+    - name: Add access ports in array
+      set_fact:
+        temp2: "{{ temp2 + item }}"
+      loop: "{{ accessport }}"
+
+    - name: Add patch ports in array
+      set_fact:
+        temp3: "{{ temp3 + [{ item.1.name: { 'switch': item.0.name }}] }}"
+      loop: "{{ hostvars[inventory_hostname]['ovs']|subelements('patch', skip_missing=True) }}"
+
+    - name: Add patch ports in array
+      set_fact:
+        temp4: "{{ temp4 + item }}"
+      loop: "{{ patchport }}"
+
+    - name: Get Port ID for ONOS for OVS access ports
+      become: yes
+      shell: "sudo ovs-ofctl show {{ item.0.name }} | grep -oEi '(.)\\({{ item.1 }}\\)' | awk '{split($0,array,\"\\\\({{ item.1 }}\\\\)\"); print array[1]}'"
+      loop: "{{ hostvars[inventory_hostname]['ovs']|subelements('access', skip_missing=True) }}"
+      register: portid
+
+    - name: Parse portid array
+      set_fact:
+        portarray: "{{ hostvars | community.general.json_query('*.portid.results[*].stdout') }}"
+
+    - name: Add ports into port dict
+      set_fact:
+        portdict: "{{ portdict | ansible.builtin.combine(temp1[index], test, recursive=True) }}"
+      vars:
+        test: "{ '{{ temp2[index] }}': { 'id': '{{ item }}' } }"
+      loop: "{{ portarray[0] }}"
+      loop_control:
+        index_var: index
+
+    - name: Get Port ID for ONOS for OVS patch ports
+      become: yes
+      shell: "sudo ovs-ofctl show {{ item.0.name }} | grep -oEi '(.)\\({{ item.1.name }}\\)' | awk '{split($0,array,\"\\\\({{ item.1.name }}\\\\)\"); print array[1]}'"
+      loop: "{{ hostvars[inventory_hostname]['ovs']|subelements('patch', skip_missing=True) }}"
+      register: portid
+
+    - name: Parse portid array
+      set_fact:
+        portarray: "{{ hostvars | community.general.json_query('*.portid.results[*].stdout') }}"
+
+    - name: Add ports into port dict
+      set_fact:
+        portdict: "{{ portdict | ansible.builtin.combine(temp3[index], test, recursive=True) }}"
+      vars:
+        test: "{ '{{ temp4[index] }}': { 'id': '{{ item }}' } }"
+      loop: "{{ portarray[0] }}"
+      loop_control:
+        index_var: index
+
+    - name: Check OVS ID for ONOS
+      become: yes
+      shell: "sudo ovs-ofctl show {{ item.name }} | grep -oEi 'dpid(.*)' | awk '{split($0,array,\":\"); print \"of:\" array[2]}'"
+      loop: "{{ hostvars[inventory_hostname]['ovs'] }}"
+      register: switchid
+
+    - name: Parse switchid array
+      set_fact:
+        switcharray: "{{ hostvars | community.general.json_query('*.switchid.results[*].stdout') }}"
+
+    - name: Add switches into switch dict
+      set_fact:
+        switchdict: "{{ switchdict | ansible.builtin.combine({hostvars[inventory_hostname]['ovs'][index]['name']: item}) }}"
+      loop: "{{ switcharray[0] }}"
+      loop_control:
+        index_var: index
+
+    - name: Create ports
+      set_fact:
+        ports: "{{ temp2 + temp4 }}"
+
+    - name: Complete portdict
+      set_fact:
+        portdict: "{{ portdict | ansible.builtin.combine(portdict[item.key], test, recursive=True) }}"
+      vars:
+        test: "{ '{{ ports[index] }}': { 'onosid': '{{ switchdict[item.value.switch] }}/{{ item.value.id }}' } }"
+      loop: "{{ lookup('ansible.builtin.dict', portdict) }}"
+      loop_control:
+        index_var: index
+
+    - name: Debug
+      debug:
+        msg: "add-point-intent --ipSrc {{ item.sourceNet }} --ipDst {{ item.destNet }} -p {{ item.priority }} -d {{ onos_mac[item.destName] }} -t {{ item.protocol }} {{ portdict[item.ingress]['onosid'] }} {{ portdict[item.egress]['onosid'] }}"
+      loop: "{{ hostvars[inventory_hostname]['intents'] }}"
+...

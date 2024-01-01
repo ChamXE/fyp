@@ -16,6 +16,7 @@
     set_fact:
       switchdict: {}
       portdict: {}
+      host_interfaces: "{{ hostvars[inventory_hostname]['interfaces'] }}"
 
   - name: Add switches into switch dict
     set_fact:
@@ -86,6 +87,9 @@
     ansible.builtin.add_host:
       groups: temp
       name: 10.100.10.30
+      interfaces: "{{ host_interfaces }}"
+      switchdict: "{{ switchdict }}"
+      portdict: "{{ portdict }}"
 
 - hosts: temp
   gather_facts: no
@@ -94,7 +98,7 @@
       ansible.builtin.shell:
         chdir: ~/fyp/
         cmd: "./removeInterface.exp {{ switchdict[item.switchname] }}/{{ portdict[item.portname] }} {{ item.portname }}"
-      loop: "{{ hostvars[inventory_hostname]['interfaces'] }}"
+      loop: "{{ interfaces }}"
 
     - name: Deactivate SDNIP app
       ansible.builtin.shell:

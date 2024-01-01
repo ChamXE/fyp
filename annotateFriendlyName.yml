@@ -44,7 +44,9 @@
   - name: Add temp host
     ansible.builtin.add_host:
       groups: temp
-      name: 10.100.10.30
+      name: 192.168.0.1
+      switchdict: "{{ switchdict }}"
+      hostdict: "{{ hostdict }}"
 
 - hosts: temp
   gather_facts: no

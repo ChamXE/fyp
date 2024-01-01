@@ -17,13 +17,14 @@
     ansible.builtin.add_host:
       groups: temp
       name: 10.100.10.30
+      ori_hostvars: "{{ hostvars }}"
       
 - hosts: temp
   gather_facts: no
   tasks:
   - name: Parse deviceid array
     set_fact:
-      array: "{{ hostvars | community.general.json_query('*.deviceid.results[*].stdout') }}"
+      array: "{{ ori_hostvars | community.general.json_query('*.deviceid.results[*].stdout') }}"
 
   - name: Connect to fyp-hp1 to remove ONOS entry
     ansible.builtin.shell:
