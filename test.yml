@@ -1,16 +1,8 @@
 ---
 - hosts: network
   tasks:
-#  - name: Display
-#    debug:
-#      msg: "{{ item.0.name }} {{ item.1 }} {{ item.0.ports.index(item.1) }}"
-#    loop: "{{ hostvars[inventory_hostname]['vms'] | subelements('ports') }}"
-#    loop_control:
-#      extended: true
-   - name: Create BGP variable
-     include_tasks:
-       file: bgpconfiguration/main.yml
-     loop: "{{ hostvars[inventory_hostname]['vms'] }}"
-     loop_control:
-       loop_var: router
+  - name: Display
+    debug:
+      msg: "--key {{ item.node }}-{{ item.sourceNet }}-{{ item.destNet }}-{{ item.ethertype }}"
+    loop: "{{ hostvars[inventory_hostname]['intents'] }}"
 ...

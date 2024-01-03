@@ -144,17 +144,17 @@
 - hosts: temp
   gather_facts: no
   tasks:
-    - name: Create Intent without IP Protocol
+    - name: Delete Intent without IP Protocol
       ansible.builtin.shell:
         chdir: ~/fyp/
-        cmd: "./addPointIntentWOIPProto.exp {{ item.sourceNet }} {{ item.destNet }} {{ item.priority }} {{ onos_mac[item.destName] }} {{ item.ethertype }} {{ portdict[item.ingress]['onosid'] }} {{ portdict[item.egress]['onosid'] }} {{ item.node }}-{{ item.sourceNet }}-{{ item.destNet }}-{{ item.ethertype }}"
+        cmd: "./deletePointIntent.exp {{ item.node }}-{{ item.sourceNet }}-{{ item.destNet }}-{{ item.ethertype }}"
       when: item.protocol is undefined
       loop: "{{ intents }}"
 
-    - name: Create Intent with IP Protocol
+    - name: Delete Intent with IP Protocol
       ansible.builtin.shell:
         chdir: ~/fyp/
-        cmd: "./addPointIntentWIPProto.exp {{ item.sourceNet }} {{ item.destNet }} {{ item.priority }} {{ onos_mac[item.destName] }} {{ item.ethertype }} {{ item.protocol }} {{ portdict[item.ingress]['onosid'] }} {{ portdict[item.egress]['onosid'] }} {{ item.node }}-{{ item.sourceNet }}-{{ item.destNet }}-{{ item.ethertype }}-{{ item.protocol }}"
+        cmd: "./deletePointIntent.exp {{ item.node }}-{{ item.sourceNet }}-{{ item.destNet }}-{{ item.ethertype }}-{{ item.protocol }}"
       when: item.protocol is defined
       loop: "{{ intents }}"
 ...

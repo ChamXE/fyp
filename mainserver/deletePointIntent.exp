@@ -41,16 +41,9 @@ if {$force_conservative} {
 #
 # -Don
 
-set ipSrc [lindex $argv 0]
-set ipDst [lindex $argv 1]
-set priority [lindex $argv 2]
-set dstMac [lindex $argv 3]
-set ethertype [lindex $argv 4]
-set ingress [lindex $argv 5]
-set egress [lindex $argv 6]
-set key [lindex $argv 7]
+set key [lindex $argv 0]
 set timeout -1
-spawn ssh onos@localhost -p 8101 -t {add-point-intent} --ipSrc $ipSrc --ipDst $ipDst -p $priority -d $dstMac -t $ethertype --key $key $ingress $egress
+spawn ssh onos@localhost -p 8101 -t {remove-intent} -p org.onosproject.cli $key
 match_max 100000
 expect -exact "Password authentication\r\r
 Password: "
