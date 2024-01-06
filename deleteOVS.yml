@@ -13,20 +13,11 @@
     shell: "sudo ovs-vsctl --if-exists del-br {{ item.name }}"
     loop: "{{ hostvars[inventory_hostname]['ovs'] }}"
 
-  - name: Add temp host
-    ansible.builtin.add_host:
-      groups: temp
-      name: 10.100.10.30
-      ori_hostvars: "{{ hostvars }}"
-      
-- hosts: temp
-  gather_facts: no
-  tasks:
   - name: Parse deviceid array
     set_fact:
-      array: "{{ ori_hostvars | community.general.json_query('*.deviceid.results[*].stdout') }}"
+      array: "{{ hostvars | community.general.json_query('*.deviceid.results[*].stdout') }}"
 
-  - name: Connect to fyp-hp1 to remove ONOS entry
+  - name: Connect to ONOS to remove ONOS entry
     ansible.builtin.shell:
       chdir: ~/fyp/
       cmd: "./removeOVS.exp {{ item }}"

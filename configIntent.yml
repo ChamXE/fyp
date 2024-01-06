@@ -133,28 +133,17 @@
       loop_control:
         index_var: index
 
-    - name: Add temp host
-      ansible.builtin.add_host:
-        groups: temp
-        name: 10.100.10.30
-        intents: "{{ hostvars[inventory_hostname]['intents'] }}"
-        portdict: "{{ portdict }}"
-        onos_mac: "{{ onos_mac }}"
-
-- hosts: temp
-  gather_facts: no
-  tasks:
     - name: Create Intent without IP Protocol
       ansible.builtin.shell:
         chdir: ~/fyp/
         cmd: "./addPointIntentWOIPProto.exp {{ item.sourceNet }} {{ item.destNet }} {{ item.priority }} {{ onos_mac[item.destName] }} {{ item.ethertype }} {{ portdict[item.ingress]['onosid'] }} {{ portdict[item.egress]['onosid'] }} {{ item.node }}-{{ item.sourceNet }}-{{ item.destNet }}-{{ item.ethertype }}"
       when: item.protocol is undefined
-      loop: "{{ intents }}"
+      loop: "{{ hostvars[inventory_hostname]['intents'] }}"
 
     - name: Create Intent with IP Protocol
       ansible.builtin.shell:
         chdir: ~/fyp/
         cmd: "./addPointIntentWIPProto.exp {{ item.sourceNet }} {{ item.destNet }} {{ item.priority }} {{ onos_mac[item.destName] }} {{ item.ethertype }} {{ item.protocol }} {{ portdict[item.ingress]['onosid'] }} {{ portdict[item.egress]['onosid'] }} {{ item.node }}-{{ item.sourceNet }}-{{ item.destNet }}-{{ item.ethertype }}-{{ item.protocol }}"
       when: item.protocol is defined
-      loop: "{{ intents }}"
+      loop: "{{ hostvars[inventory_hostname]['intents'] }}"
 ...

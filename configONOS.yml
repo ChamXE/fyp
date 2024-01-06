@@ -86,7 +86,7 @@
 
   - name: Configure interface
     ansible.builtin.uri:
-      url: "http://10.100.10.30:8181/onos/v1/network/configuration/ports"
+      url: "http://{{ inventory_hostname }}:8181/onos/v1/network/configuration/ports"
       method: POST
       body_format: json
       user: onos
@@ -102,7 +102,7 @@
 
   - name: Check org.onosproject.router existence
     ansible.builtin.uri:
-      url: "http://10.100.10.30:8181/onos/v1/network/configuration/apps/org.onosproject.router/bgp"
+      url: "http://{{ inventory_hostname }}:8181/onos/v1/network/configuration/apps/org.onosproject.router/bgp"
       method: GET
       user: onos
       password: rocks
@@ -115,7 +115,7 @@
 
   - name: Create org.onosproject.router if not exist
     ansible.builtin.uri:
-      url: "http://10.100.10.30:8181/onos/v1/network/configuration/apps"
+      url: "http://{{ inventory_hostname }}:8181/onos/v1/network/configuration/apps"
       method: POST
       body_format: json
       user: onos
@@ -150,7 +150,7 @@
 
   - name: Post bgpspeaker configuration
     ansible.builtin.uri:
-      url: "http://10.100.10.30:8181/onos/v1/network/configuration/apps/org.onosproject.router/bgp"
+      url: "http://{{ inventory_hostname }}:8181/onos/v1/network/configuration/apps/org.onosproject.router/bgp"
       method: POST
       body_format: json
       user: onos
@@ -164,25 +164,17 @@
     register: bgpspeaker_response
     failed_when: bgpspeaker_response.status not in [200,201,204]
 
-  - name: Add temp host
-    ansible.builtin.add_host:
-      groups: temp
-      name: 10.100.10.30
+  - name: Deactivate SDNIP app
+    ansible.builtin.shell:
+      chdir: ~/fyp/
+      cmd: "./deactivateApp.exp sdnip"
 
-- hosts: temp
-  gather_facts: no
-  tasks:
-    - name: Deactivate SDNIP app
-      ansible.builtin.shell:
-        chdir: ~/fyp/
-        cmd: "./deactivateApp.exp sdnip"
+  - name: Pause a while
+    ansible.builtin.pause:
+      seconds: 5
 
-    - name: Pause a while
-      ansible.builtin.pause:
-        seconds: 5
-
-    - name: Activate SDNIP app
-      ansible.builtin.shell:
-        chdir: ~/fyp/
-        cmd: "./activateApp.exp sdnip"
+  - name: Activate SDNIP app
+    ansible.builtin.shell:
+      chdir: ~/fyp/
+      cmd: "./activateApp.exp sdnip"
 ...

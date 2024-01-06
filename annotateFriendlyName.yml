@@ -41,25 +41,15 @@
     loop_control:
       index_var: index
 
-  - name: Add temp host
-    ansible.builtin.add_host:
-      groups: temp
-      name: 192.168.0.1
-      switchdict: "{{ switchdict }}"
-      hostdict: "{{ hostdict }}"
+  - name: Annotate device
+    ansible.builtin.shell:
+      chdir: ~/fyp/
+      cmd: "./annotateDevice.exp {{ item.value }} {{ item.key }}"
+    loop: "{{ lookup('ansible.builtin.dict', switchdict) }}"
 
-- hosts: temp
-  gather_facts: no
-  tasks:
-    - name: Annotate device
-      ansible.builtin.shell:
-        chdir: ~/fyp/
-        cmd: "./annotateDevice.exp {{ item.value }} {{ item.key }}"
-      loop: "{{ lookup('ansible.builtin.dict', switchdict) }}"
-
-    - name: Annotate host
-      ansible.builtin.shell:
-        chdir: ~/fyp/
-        cmd: "./annotateHost.exp {{ item.key }} {{ item.value }}"
-      loop: "{{ lookup('ansible.builtin.dict', hostdict) }}"
+  - name: Annotate host
+    ansible.builtin.shell:
+      chdir: ~/fyp/
+      cmd: "./annotateHost.exp {{ item.key }} {{ item.value }}"
+    loop: "{{ lookup('ansible.builtin.dict', hostdict) }}"
 ...

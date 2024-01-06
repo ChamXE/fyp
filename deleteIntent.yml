@@ -133,23 +133,12 @@
       loop_control:
         index_var: index
 
-    - name: Add temp host
-      ansible.builtin.add_host:
-        groups: temp
-        name: 10.100.10.30
-        intents: "{{ hostvars[inventory_hostname]['intents'] }}"
-        portdict: "{{ portdict }}"
-        onos_mac: "{{ onos_mac }}"
-
-- hosts: temp
-  gather_facts: no
-  tasks:
     - name: Delete Intent without IP Protocol
       ansible.builtin.shell:
         chdir: ~/fyp/
         cmd: "./deletePointIntent.exp {{ item.node }}-{{ item.sourceNet }}-{{ item.destNet }}-{{ item.ethertype }}"
       when: item.protocol is undefined
-      loop: "{{ intents }}"
+      loop: "{{ hostvars[inventory_hostname]['intents'] }}"
 
     - name: Delete Intent with IP Protocol
       ansible.builtin.shell:
