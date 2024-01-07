@@ -1,8 +1,39 @@
 ---
 - hosts: network
+  vars:
+    username: cisco
+    password: cisco123!
+    routerport: {}
   tasks:
-  - name: Display
-    debug:
-      msg: "--key {{ item.node }}-{{ item.sourceNet }}-{{ item.destNet }}-{{ item.ethertype }}"
-    loop: "{{ hostvars[inventory_hostname]['intents'] }}"
+    - name: Build routerport for normal router
+      set_fact:
+        routerport: "{{ routerport | ansible.builtin.combine({item.routername: item.interfacename}) }}"
+      loop: "{{ hostvars[inventory_hostname]['interfaces'] }}"
+
+    - name: Build routerport for bgpspeaker
+      set_fact:
+        routerport: "{{ routerport | ansible.builtin.combine({item.routername: item.interfacename}) }}"
+      loop: "{{ hostvars[inventory_hostname]['bgpspeaker'] }}"
+
+    - name: Get MAC address
+      ansible.builtin.uri:
+        url: "https://{{ item.vbox_ip }}/restconf/data/Cisco-IOS-XE-interfaces-oper:interfaces/interface={{ routerport[item.name] }}/phys-address"
+        method: GET
+        user: "{{ item.users.0.username | default(username) }}"
+        password: "{{ item.users.0.password | default(password) }}"
+        force_basic_auth: true
+        validate_certs: no
+        headers:
+          Accept: application/yang-data+json
+      register: mac_address
+      failed_when: mac_address.status not in [200,201,204]
+      loop: "{{ hostvars[inventory_hostname]['vms'] }}"
+      retries: 5
+      delay: 5
+      until: mac_address.status not in [409, 404]
+
+    - name: Debug
+      debug:
+        msg: "{{ item.json }}"
+      loop: "{{ mac_address.results }}"
 ...

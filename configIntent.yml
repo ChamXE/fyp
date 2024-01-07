@@ -12,10 +12,21 @@
     onos_mac: {}
     switcharray: []
     switchdict: {}
+    routerport: {}
   tasks:
+    - name: Build routerport for normal router
+      set_fact:
+        routerport: "{{ routerport | ansible.builtin.combine({item.routername: item.interfacename}) }}"
+      loop: "{{ hostvars[inventory_hostname]['interfaces'] }}"
+
+    - name: Build routerport for bgpspeaker
+      set_fact:
+        routerport: "{{ routerport | ansible.builtin.combine({item.routername: item.interfacename}) }}"
+      loop: "{{ hostvars[inventory_hostname]['bgpspeaker'] }}"
+
     - name: Get MAC address
       ansible.builtin.uri:
-        url: "https://{{ item.vbox_ip }}/restconf/data/Cisco-IOS-XE-interfaces-oper:interfaces/interface={{ hostvars[inventory_hostname]['bgpspeaker'][0]['interfacename'] }}/phys-address"
+        url: "https://{{ item.vbox_ip }}/restconf/data/Cisco-IOS-XE-interfaces-oper:interfaces/interface={{ routerport[item.name] }}/phys-address"
         method: GET
         user: "{{ item.users.0.username | default(username) }}"
         password: "{{ item.users.0.password | default(password) }}"
